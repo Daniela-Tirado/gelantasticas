@@ -1,0 +1,194 @@
+/* Paleta base en modo oscuro minimalista */
+:root {
+    --bg-base: #191919;
+    --bg-panel: #252525;
+    --text-main: #EBEBEB;
+    --text-muted: #A0A0A0;
+    --border-color: #333333;
+    --accent: #5C88C4;
+    --accent-hover: #4A6E9E;
+    --danger: #CF6679;
+    --success: #4CAF50;
+    --tag-mayorista: #e5a93b;
+    --tag-minorista: #8e6bc9;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.dashboard {
+    width: 100%;
+    max-width: 1050px;
+    background-color: var(--bg-panel);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Navegación Principal (4 pestañas) */
+.nav {
+    display: flex;
+    background-color: #1e1e1e;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.nav button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 15px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.nav button:hover {
+    color: var(--text-main);
+}
+
+.nav button.active {
+    color: var(--text-main);
+    border-bottom: 2px solid var(--accent);
+    background-color: var(--bg-panel);
+}
+
+/* Contenido de pestañas */
+.tab-content {
+    display: none;
+    padding: 25px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+h2 {
+    margin-top: 0;
+    font-size: 20px;
+}
+
+/* Tablas */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 13px;
+}
+
+/* Inputs y Selects */
+input, select {
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    border-radius: 4px;
+    outline: none;
+}
+
+input:focus, select:focus {
+    border-color: var(--accent);
+}
+
+/* Botones */
+.btn {
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.btn:hover {
+    background-color: var(--accent-hover);
+}
+
+.btn-success {
+    background-color: var(--success);
+}
+
+.btn-success:hover {
+    background-color: #3e8e41;
+}
+
+.btn-danger {
+    background-color: var(--bg-base);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+}
+
+.btn-danger:hover {
+    background-color: var(--danger);
+    color: white;
+}
+
+.header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Etiquetas */
+.tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.tag-minorista {
+    background-color: rgba(142, 107, 201, 0.2);
+    color: var(--tag-minorista);
+    border: 1px solid var(--tag-minorista);
+}
+
+.tag-mayorista {
+    background-color: rgba(229, 169, 59, 0.2);
+    color: var(--tag-mayorista);
+    border: 1px solid var(--tag-mayorista);
+}
+
+/* Cajas de resumen */
+.summary-box {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--bg-base);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    text-align: right;
+}
+
+.summary-box h3 {
+    margin: 0 0 10px 0;
+    color: var(--accent);
+}
+
+.quote-panel {
+    background-color: #1f2733;
+    border: 1px solid var(--accent);
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 25px;
+    display: none;
+}
