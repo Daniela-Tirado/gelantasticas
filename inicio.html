@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Insumos y Costos</title>
+    <!-- Tailwind CSS CDN para utilidades de Layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body class="bg-zinc-900 text-zinc-100 min-h-screen">
+
+    <div class="app-container">
+    <!-- Encabezado de la aplicación -->
+    <header class="flex justify-between items-center mb-6 no-print">
+        <div>
+        <h1 class="text-2xl font-bold tracking-tight">Sistema de Control y Costos</h1>
+        <p class="text-zinc-400 text-sm">Gestión de proveedores, insumos y cotización de recetas</p>
+        </div>
+    </header>
+
+    <!-- Pestañas de Navegación -->
+    <nav class="nav-tabs no-print">
+        <button class="tab-button active" onclick="switchTab('gestion')">
+        <i class="fa-solid fa-boxes-stacked mr-2"></i>Gestión (Proveedores / Productos)
+        </button>
+        <button class="tab-button" onclick="switchTab('calculadora')">
+        <i class="fa-solid fa-calculator mr-2"></i>Calculadora de Costos
+        </button>
+    </nav>
+
+    <!-- SECCIÓN 1: GESTIÓN DE INSUMOS -->
+    <section id="tab-gestion" class="tab-content">
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="kpi-card">
+            <span class="text-xs text-zinc-400 block uppercase">Total Insumos</span>
+            <span id="kpi-total-insumos" class="text-2xl font-bold">0</span>
+        </div>
+        <div class="kpi-card">
+            <span class="text-xs text-zinc-400 block uppercase">Total Proveedores</span>
+            <span id="kpi-total-proveedores" class="text-2xl font-bold">0</span>
+        </div>
+        <div class="kpi-card">
+            <span class="text-xs text-zinc-400 block uppercase">Costo Unitario Promedio</span>
+            <span id="kpi-costo-promedio" class="text-2xl font-bold">$0.00</span>
+        </div>
+        </div>
+
+        <!-- Filtros y Controles -->
+        <div class="flex flex-col md:flex-row justify-between gap-4 mb-4">
+        <input type="text" id="search-input" class="form-input md:w-80" placeholder="Buscar insumo o proveedor..." oninput="renderTable()">
+        <button class="btn-primary" onclick="openModal()">
+            <i class="fa-solid fa-plus mr-2"></i>Agregar Insumo
+        </button>
+        </div>
+
+        <!-- Tabla de Insumos -->
+        <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+            <tr>
+                <th>Insumo / Presentación</th>
+                <th>Costo Total</th>
+                <th>Precio Un. Mínima</th>
+                <th>Proveedor</th>
+                <th>Actualizado</th>
+                <th class="text-right">Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="inventory-table-body">
+            <!-- Cargado con JavaScript -->
+            </tbody>
+        </table>
+        </div>
+    </section>
+
+    <!-- SECCIÓN 2: CALCULADORA DE COSTOS -->
+    <section id="tab-calculadora" class="tab-content hidden">
+        <div class="card">
+        <h2 class="text-xl font-bold mb-4">Cotizador de Receta</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+            <label class="block text-xs text-zinc-400 mb-1">Nombre de la Receta:</label>
+            <input type="text" id="recipe-name" class="form-input" value="Gelatina de Mosaico">
+            </div>
+            <div>
+            <label class="block text-xs text-zinc-400 mb-1">Rendimiento (Porciones/Unidades):</label>
+            <input type="number" id="recipe-yield" class="form-input" value="10" min="1" onchange="calculateRecipe()">
+            </div>
+            <div>
+            <label class="block text-xs text-zinc-400 mb-1">Margen de Ganancia Deseado (%):</label>
+            <input type="number" id="recipe-margin" class="form-input" value="40" min="0" max="99" onchange="calculateRecipe()">
+            </div>
+        </div>
+
+        <!-- Tabla de Insumos de la Receta -->
+        <div class="table-responsive mb-4">
+            <table class="custom-table">
+            <thead>
+                <tr>
+                <th>Insumo</th>
+                <th style="width: 120px;">Cantidad</th>
+                <th>Proveedor</th>
+                <th>Costo Unit.</th>
+                <th>Subtotal</th>
+                <th style="width: 50px;"></th>
+                </tr>
+            </thead>
+            <tbody id="recipe-table-body">
+                <!-- Filas de insumos dinámicas -->
+            </tbody>
+            </table>
+        </div>
+
+        <button class="btn-primary text-sm mb-6 no-print" onclick="addRecipeRow()">
+            <i class="fa-solid fa-plus mr-1"></i>Agregar Insumo
+        </button>
+
+        <!-- Panel de Resultados -->
+        <div class="summary-panel">
+            <div class="summary-row">
+            <span class="text-zinc-400">Costo Total de Producción:</span>
+            <span id="summary-total-cost" class="font-bold text-lg summary-value-accent">$0.00</span>
+            </div>
+            <div class="summary-row">
+            <span class="text-zinc-400">Costo por Unidad:</span>
+            <span id="summary-unit-cost" class="font-semibold">$0.00</span>
+            </div>
+            <div class="summary-row total">
+            <span>Precio de Venta Sugerido (Total):</span>
+            <span id="summary-total-price" class="text-emerald-400">$0.00</span>
+            </div>
+            <div class="summary-row">
+            <span class="text-zinc-400">Precio Sugerido por Unidad:</span>
+            <span id="summary-unit-price" class="font-bold text-emerald-400">$0.00</span>
+            </div>
+        </div>
+        </div>
+    </section>
+    </div>  
+
+    <!-- Archivo JavaScript externo -->
+    <script src="calculos.js"></script>
+</body>
+</html>
