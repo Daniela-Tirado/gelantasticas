@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Insumos y Costos - Gelantásticas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body class="bg-zinc-900 text-zinc-100 min-h-screen">
+
+    <div class="app-container">
+        <!-- Encabezado -->
+        <header class="flex justify-between items-center mb-6 no-print">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">Sistema de Control y Costos</h1>
+                <p class="text-zinc-400 text-sm">Gestión de proveedores, insumos, nómina y cotización de recetas</p>
+            </div>
+        </header>
+
+        <!-- Pestañas de Navegación -->
+        <nav class="nav-tabs no-print">
+            <button class="tab-button active" data-tab="gestion" onclick="switchTab('gestion')">
+                <i class="fa-solid fa-boxes-stacked mr-2"></i>Gestión (Proveedores / Insumos)
+            </button>
+            <button class="tab-button" data-tab="nomina" onclick="switchTab('nomina')">
+                <i class="fa-solid fa-users mr-2"></i>Nómina / Mano de Obra
+            </button>
+            <button class="tab-button" data-tab="calculadora" onclick="switchTab('calculadora')">
+                <i class="fa-solid fa-calculator mr-2"></i>Calculadora de Costos
+            </button>
+            <button class="tab-button" data-tab="mayomenor" onclick="switchTab('mayomenor')">
+                <i class="fa-solid fa-scale-balanced mr-2"></i>Línea Mayorista/Minorista
+            </button>
+        </nav>
+
+        <!-- SECCIÓN 1: GESTIÓN DE INSUMOS (Conectado a MySQL) -->
+        <section id="tab-gestion" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="kpi-card">
+                    <span class="text-xs text-zinc-400 block uppercase">Total Insumos</span>
+                    <span id="kpi-total-insumos" class="text-2xl font-bold">0</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="text-xs text-zinc-400 block uppercase">Total Proveedores</span>
+                    <span id="kpi-total-proveedores" class="text-2xl font-bold">0</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="text-xs text-zinc-400 block uppercase">Costo Unitario Promedio</span>
+                    <span id="kpi-costo-promedio" class="text-2xl font-bold">$0.00</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between gap-4 mb-4">
+                <input type="text" id="search-input" class="form-input md:w-80" placeholder="Buscar insumo o proveedor..." oninput="renderInventoryTable()">
+                <button class="btn-primary" onclick="openInventoryModal()">
+                    <i class="fa-solid fa-plus mr-2"></i>Agregar Insumo
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Insumo</th>
+                            <th>Presentación</th>
+                            <th>Costo Total</th>
+                            <th>Precio Un. Mínima</th>
+                            <th>Proveedor</th>
+                            <th>Actualizado</th>
+                            <th class="text-right">Acciones (CRUD)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 2: NÓMINA / MANO DE OBRA (Conectado a tabla nomina en MySQL) -->
+        <section id="tab-nomina" class="tab-content hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="kpi-card">
+                    <span class="text-xs text-zinc-400 block uppercase">Empleados Activos</span>
+                    <span id="kpi-total-empleados" class="text-2xl font-bold">0</span>
+                </div>
+                <div class="kpi-card">
+                    <span class="text-xs text-zinc-400 block uppercase">Costo Diario Total Nómina</span>
+                    <span id="kpi-nomina-diaria" class="text-2xl font-bold text-emerald-400">$0.00</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end mb-4">
+                <button class="btn-primary" onclick="openNominaModal()">
+                    <i class="fa-solid fa-user-plus mr-2"></i>Agregar Empleado
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th>Puesto</th>
+                            <th>Horas / Turno</th>
+                            <th>Tarifa / Hora</th>
+                            <th>Salario Diario</th>
+                            <th class="text-right">Acciones (CRUD)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nomina-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 3: CALCULADORA DE COSTOS -->
+        <section id="tab-calculadora" class="tab-content hidden">
+            <div class="card">
+                <h2 class="text-xl font-bold mb-4">Cotizador Rápido de Receta</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Nombre de la Receta:</label>
+                        <input type="text" id="recipe-name" class="form-input" value="Gelatina de Mosaico">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Rendimiento (Unidades):</label>
+                        <input type="number" id="recipe-yield" class="form-input" value="10" min="1" oninput="calculateRecipe()">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Mano de Obra Lote ($):</label>
+                        <input type="number" id="recipe-labor" class="form-input" value="0" min="0" step="0.01" oninput="calculateRecipe()">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Margen Deseado (%):</label>
+                        <input type="number" id="recipe-margin" class="form-input" value="40" min="0" max="99" oninput="calculateRecipe()">
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-4">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Insumo</th>
+                                <th style="width: 120px;">Cantidad</th>
+                                <th>Proveedor</th>
+                                <th>Costo Unit.</th>
+                                <th>Subtotal</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="recipe-table-body"></tbody>
+                    </table>
+                </div>
+
+                <button class="btn-primary text-sm mb-6 no-print" onclick="addRecipeRow()">
+                    <i class="fa-solid fa-plus mr-1"></i>Agregar Insumo
+                </button>
+
+                <div class="summary-panel">
+                    <div class="summary-row">
+                        <span class="text-zinc-400">Costo Total de Producción (Insumos + Mano de Obra):</span>
+                        <span id="summary-total-cost" class="font-bold text-lg summary-value-accent">$0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="text-zinc-400">Costo por Unidad:</span>
+                        <span id="summary-unit-cost" class="font-semibold">$0.00</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Precio de Venta Sugerido (Total):</span>
+                        <span id="summary-total-price" class="text-emerald-400">$0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="text-zinc-400">Precio Sugerido por Unidad:</span>
+                        <span id="summary-unit-price" class="font-bold text-emerald-400">$0.00</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 4: LÍNEA MAYORISTA Y MINORISTA (Conectado a MySQL) -->
+        <section id="tab-mayomenor" class="tab-content hidden">
+            <div class="card">
+                <h2 class="text-xl font-bold mb-4">Mayor/Menor</h2>
+                <p class="text-zinc-400 mb-4">Crea recetas y administra tus cotizaciones para venta minorista y mayorista en MySQL.</p>
+
+                <nav class="mm-nav no-print" aria-label="Operaciones de Mayor/Menor">
+                    <button class="mm-nav-button active" data-screen="receta" onclick="mayorMenor.openScreen('receta')">Nueva receta</button>
+                    <button class="mm-nav-button" data-screen="minorista" onclick="mayorMenor.openScreen('minorista')">Línea Minorista</button>
+                    <button class="mm-nav-button" data-screen="mayorista" onclick="mayorMenor.openScreen('mayorista')">Línea Mayorista</button>
+                </nav>
+
+                <section id="mm-screen-receta" class="mm-screen">
+                    <h3 class="text-lg font-semibold mb-4">Cotizador y Guardado de Receta</h3>
+                    <div class="mm-form-grid mb-4">
+                        <label>Receta / Producto:
+                            <input id="mm-recipe-name" class="form-input" type="text" value="Gelatina Individual Mosaico">
+                        </label>
+                        <label>Guardar en Línea:
+                            <select id="mm-recipe-line" class="form-select" onchange="mayorMenor.adjustDefaultMargin()">
+                                <option value="minorista">Minorista</option>
+                                <option value="mayorista">Mayorista</option>
+                            </select>
+                        </label>
+                        <label>Rendimiento (piezas):
+                            <input id="mm-batch-yield" class="form-input" type="number" value="10" min="1" oninput="mayorMenor.calculate()">
+                        </label>
+                        <label>Mano de Obra Lote ($):
+                            <input id="mm-labor-cost" class="form-input" type="number" value="0" min="0" step="0.01" oninput="mayorMenor.calculate()">
+                        </label>
+                        <label>Margen (%):
+                            <input id="mm-margin-pct" class="form-input" type="number" value="40" min="1" max="95" oninput="mayorMenor.calculate()">
+                        </label>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Insumo</th>
+                                    <th>Cantidad</th>
+                                    <th>Proveedor</th>
+                                    <th>Costo Unit.</th>
+                                    <th>Subtotal</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="mm-recipe-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="mm-actions my-4">
+                        <button class="btn-primary" onclick="mayorMenor.addRow()">+ Agregar Insumo</button>
+                        <button class="btn-primary" onclick="mayorMenor.saveRecipe()">Guardar en Base de Datos</button>
+                    </div>
+
+                    <div class="summary-panel">
+                        <div class="summary-row">
+                            <span>Costo Total de Producción:</span>
+                            <strong id="mm-total-cost">$0.00</strong>
+                        </div>
+                        <div class="summary-row">
+                            <span>Costo por Unidad:</span>
+                            <strong id="mm-unit-cost">$0.00</strong>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Precio Sugerido por Pieza:</span>
+                            <strong id="mm-sale-price">$0.00</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="mm-screen-minorista" class="mm-screen hidden">
+                    <div class="mm-section-heading">
+                        <div>
+                            <h3 class="text-lg font-semibold">Recetario - Línea Minorista</h3>
+                            <p class="text-zinc-400 text-sm">Recetas guardadas en MySQL para venta al detalle.</p>
+                        </div>
+                        <div class="mm-actions">
+                            <button class="btn-primary" onclick="mayorMenor.newRecipe('minorista')">+ Nueva Receta</button>
+                            <button class="btn-primary" onclick="mayorMenor.generateBatchQuote('minorista')">Cotizar Seleccionadas</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" aria-label="Seleccionar todas" onchange="mayorMenor.toggleSelectAll('minorista', this)"></th>
+                                    <th>Receta</th><th>Piezas Base</th><th>Costo Unit.</th><th>Precio Venta</th><th>Margen</th><th class="text-right">Acciones (CRUD)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mm-minorista-body"></tbody>
+                        </table>
+                    </div>
+                    <div id="mm-quote-panel-minorista" class="mm-quote-panel hidden">
+                        <h4 class="text-lg font-semibold mb-2">Cotización Minorista Combinada</h4>
+                        <div id="mm-quote-details-minorista"></div>
+                    </div>
+                </section>
+
+                <section id="mm-screen-mayorista" class="mm-screen hidden">
+                    <div class="mm-section-heading">
+                        <div>
+                            <h3 class="text-lg font-semibold">Recetario - Línea Mayorista</h3>
+                            <p class="text-zinc-400 text-sm">Recetas guardadas en MySQL para distribución y mayoreo.</p>
+                        </div>
+                        <div class="mm-actions">
+                            <button class="btn-primary" onclick="mayorMenor.newRecipe('mayorista')">+ Nueva Receta</button>
+                            <button class="btn-primary" onclick="mayorMenor.generateBatchQuote('mayorista')">Cotizar Seleccionadas</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" aria-label="Seleccionar todas" onchange="mayorMenor.toggleSelectAll('mayorista', this)"></th>
+                                    <th>Receta</th><th>Piezas Base</th><th>Costo Unit.</th><th>Precio Venta</th><th>Margen</th><th class="text-right">Acciones (CRUD)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mm-mayorista-body"></tbody>
+                        </table>
+                    </div>
+                    <div id="mm-quote-panel-mayorista" class="mm-quote-panel hidden">
+                        <h4 class="text-lg font-semibold mb-2">Cotización Mayorista Combinada</h4>
+                        <div id="mm-quote-details-mayorista"></div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </div>
+
+    <!-- MODAL DE INSUMOS -->
+    <div id="inventory-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50 p-4">
+        <div class="card w-full max-w-lg bg-zinc-900 border border-zinc-700">
+            <h3 id="inv-modal-title" class="text-lg font-bold mb-4">Agregar / Editar Insumo</h3>
+            <input type="hidden" id="inv-edit-id">
+            <div class="space-y-4 mb-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Nombre del Insumo:</label>
+                        <input type="text" id="inv-modal-name" class="form-input" placeholder="Ej. Leche Condensada">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Presentación:</label>
+                        <input type="text" id="inv-modal-pres" class="form-input" placeholder="Ej. Lata 387g" value="Unidad">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Costo Total ($):</label>
+                        <input type="number" id="inv-modal-cost" class="form-input" step="0.01" value="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Precio Un. Mínima ($):</label>
+                        <input type="number" id="inv-modal-unit-price" class="form-input" step="0.0001" value="0.00">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1">Proveedor:</label>
+                    <input type="text" id="inv-modal-provider" class="form-input" placeholder="Ej. Materias Gómez">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button class="btn-danger" onclick="closeInventoryModal()">Cancelar</button>
+                <button class="btn-primary" onclick="saveInventoryItem()">Guardar en MySQL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE NÓMINA -->
+    <div id="nomina-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50 p-4">
+        <div class="card w-full max-w-lg bg-zinc-900 border border-zinc-700">
+            <h3 id="nom-modal-title" class="text-lg font-bold mb-4">Agregar Empleado</h3>
+            <input type="hidden" id="nom-edit-id">
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1">Nombre del Empleado:</label>
+                    <input type="text" id="nom-modal-nombre" class="form-input" placeholder="Ej. María López">
+                </div>
+                <div>
+                    <label class="block text-xs text-zinc-400 mb-1">Puesto:</label>
+                    <input type="text" id="nom-modal-puesto" class="form-input" placeholder="Ej. Producción / Cocina">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Horas por Turno:</label>
+                        <input type="number" id="nom-modal-horas" class="form-input" step="0.5" value="8">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-400 mb-1">Tarifa por Hora ($):</label>
+                        <input type="number" id="nom-modal-tarifa" class="form-input" step="0.01" value="50.00">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button class="btn-danger" onclick="closeNominaModal()">Cancelar</button>
+                <button class="btn-primary" onclick="saveNominaItem()">Guardar en MySQL</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let inventoryCache = [];
+        let nominaCache = [];
+        let recetasCache = [];
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            const btn = document.querySelector(`[data-tab="${tabId}"]`);
+            if (btn) btn.classList.add('active');
+        }
+
+        // --- 1. INVENTARIO Y PROVEEDORES (API MYSQL) ---
+        async function loadInventory() {
+            const res = await fetch('/api/insumos');
+            inventoryCache = await res.json();
+            renderInventoryTable();
+        }
+
+        function renderInventoryTable() {
+            const tbody = document.getElementById('inventory-table-body');
+            if (!tbody) return;
+            const searchVal = document.getElementById('search-input')?.value.toLowerCase() || '';
+            tbody.innerHTML = '';
+
+            let totalCostSum = 0;
+            const providersSet = new Set();
+
+            const filtered = inventoryCache.filter(item =>
+                item.nombre.toLowerCase().includes(searchVal) ||
+                item.proveedor.toLowerCase().includes(searchVal)
+            );
+
+            filtered.forEach(item => {
+                totalCostSum += Number(item.costo_total);
+                providersSet.add(item.proveedor);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="font-medium">${item.nombre}</td>
+                    <td class="text-zinc-400">${item.presentacion}</td>
+                    <td>$${Number(item.costo_total).toFixed(2)}</td>
+                    <td>$${Number(item.precio_unidad_minima).toFixed(2)}</td>
+                    <td><span class="text-zinc-300">${item.proveedor}</span></td>
+                    <td class="text-zinc-400 text-xs">${item.actualizado || '-'}</td>
+                    <td class="text-right space-x-2">
+                        <button class="btn-primary text-xs py-1 px-2" onclick="editInventoryItem(${item.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-danger text-xs py-1 px-2" onclick="deleteInventoryItem(${item.id})" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('kpi-total-insumos').innerText = inventoryCache.length;
+            document.getElementById('kpi-total-proveedores').innerText = providersSet.size;
+            const avg = inventoryCache.length > 0 ? (totalCostSum / inventoryCache.length).toFixed(2) : '0.00';
+            document.getElementById('kpi-costo-promedio').innerText = `$${avg}`;
+        }
+
+        function openInventoryModal() {
+            document.getElementById('inv-modal-title').innerText = 'Agregar Insumo';
+            document.getElementById('inv-edit-id').value = '';
+            document.getElementById('inv-modal-name').value = '';
+            document.getElementById('inv-modal-pres').value = 'Unidad';
+            document.getElementById('inv-modal-cost').value = '';
+            document.getElementById('inv-modal-unit-price').value = '';
+            document.getElementById('inv-modal-provider').value = '';
+            document.getElementById('inventory-modal').classList.remove('hidden');
+        }
+
+        function closeInventoryModal() {
+            document.getElementById('inventory-modal').classList.add('hidden');
+        }
+
+        async function saveInventoryItem() {
+            const id = document.getElementById('inv-edit-id').value;
+            const payload = {
+                nombre: document.getElementById('inv-modal-name').value.trim(),
+                presentacion: document.getElementById('inv-modal-pres').value.trim() || 'Unidad',
+                costo_total: parseFloat(document.getElementById('inv-modal-cost').value) || 0,
+                precio_unidad_minima: parseFloat(document.getElementById('inv-modal-unit-price').value) || 0,
+                proveedor: document.getElementById('inv-modal-provider').value.trim()
+            };
+
+            if (!payload.nombre || !payload.proveedor) {
+                alert('Ingresa el nombre del insumo y el proveedor.');
+                return;
+            }
+
+            const url = id ? `/api/insumos/${id}` : '/api/insumos';
+            const method = id ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                alert('Error al guardar: ' + err.error);
+                return;
+            }
+
+            closeInventoryModal();
+            await loadInventory();
+        }
+
+        function editInventoryItem(id) {
+            const item = inventoryCache.find(i => i.id == id);
+            if (!item) return;
+            document.getElementById('inv-modal-title').innerText = 'Editar Insumo';
+            document.getElementById('inv-edit-id').value = item.id;
+            document.getElementById('inv-modal-name').value = item.nombre;
+            document.getElementById('inv-modal-pres').value = item.presentacion;
+            document.getElementById('inv-modal-cost').value = item.costo_total;
+            document.getElementById('inv-modal-unit-price').value = item.precio_unidad_minima;
+            document.getElementById('inv-modal-provider').value = item.proveedor;
+            document.getElementById('inventory-modal').classList.remove('hidden');
+        }
+
+        async function deleteInventoryItem(id) {
+            if (!confirm('¿Eliminar este insumo de MySQL?')) return;
+            const res = await fetch(`/api/insumos/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const err = await res.json();
+                alert('No se puede eliminar (puede estar en uso en una receta): ' + err.error);
+                return;
+            }
+            await loadInventory();
+        }
+
+        // --- 2. NÓMINA (API MYSQL) ---
+        async function loadNomina() {
+            const res = await fetch('/api/nomina');
+            nominaCache = await res.json();
+            renderNominaTable();
+        }
+
+        function renderNominaTable() {
+            const tbody = document.getElementById('nomina-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            let totalDiario = 0;
+
+            nominaCache.forEach(emp => {
+                totalDiario += Number(emp.salario_diario);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="font-medium">${emp.nombre_empleado}</td>
+                    <td>${emp.puesto}</td>
+                    <td>${Number(emp.horas_turno).toFixed(1)} hrs</td>
+                    <td>$${Number(emp.tarifa_hora).toFixed(2)}</td>
+                    <td class="text-emerald-400 font-semibold">$${Number(emp.salario_diario).toFixed(2)}</td>
+                    <td class="text-right space-x-2">
+                        <button class="btn-primary text-xs py-1 px-2" onclick="editNominaItem(${emp.id})"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-danger text-xs py-1 px-2" onclick="deleteNominaItem(${emp.id})"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('kpi-total-empleados').innerText = nominaCache.length;
+            document.getElementById('kpi-nomina-diaria').innerText = `$${totalDiario.toFixed(2)}`;
+        }
+
+        function openNominaModal() {
+            document.getElementById('nom-modal-title').innerText = 'Agregar Empleado';
+            document.getElementById('nom-edit-id').value = '';
+            document.getElementById('nom-modal-nombre').value = '';
+            document.getElementById('nom-modal-puesto').value = '';
+            document.getElementById('nom-modal-horas').value = 8;
+            document.getElementById('nom-modal-tarifa').value = 50;
+            document.getElementById('nomina-modal').classList.remove('hidden');
+        }
+
+        function closeNominaModal() {
+            document.getElementById('nomina-modal').classList.add('hidden');
+        }
+
+        async function saveNominaItem() {
+            const id = document.getElementById('nom-edit-id').value;
+            const payload = {
+                nombre_empleado: document.getElementById('nom-modal-nombre').value.trim(),
+                puesto: document.getElementById('nom-modal-puesto').value.trim(),
+                horas_turno: parseFloat(document.getElementById('nom-modal-horas').value) || 0,
+                tarifa_hora: parseFloat(document.getElementById('nom-modal-tarifa').value) || 0
+            };
+
+            if (!payload.nombre_empleado || !payload.puesto) {
+                alert('Completa el nombre y el puesto.');
+                return;
+            }
+
+            const url = id ? `/api/nomina/${id}` : '/api/nomina';
+            const method = id ? 'PUT' : 'POST';
+
+            await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            closeNominaModal();
+            await loadNomina();
+        }
+
+        function editNominaItem(id) {
+            const emp = nominaCache.find(e => e.id == id);
+            if (!emp) return;
+            document.getElementById('nom-modal-title').innerText = 'Editar Empleado';
+            document.getElementById('nom-edit-id').value = emp.id;
+            document.getElementById('nom-modal-nombre').value = emp.nombre_empleado;
+            document.getElementById('nom-modal-puesto').value = emp.puesto;
+            document.getElementById('nom-modal-horas').value = emp.horas_turno;
+            document.getElementById('nom-modal-tarifa').value = emp.tarifa_hora;
+            document.getElementById('nomina-modal').classList.remove('hidden');
+        }
+
+        async function deleteNominaItem(id) {
+            if (!confirm('¿Eliminar este empleado de la nómina?')) return;
+            await fetch(`/api/nomina/${id}`, { method: 'DELETE' });
+            await loadNomina();
+        }
+
+        // --- 3. FILAS DE INSUMOS PARA RECETAS ---
+        function createIngredientRow(tbodyId, onCalcFn, savedItem = null) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+
+            const uniqueNames = [...new Set(inventoryCache.map(i => i.nombre))];
+            let optionsHtml = '<option value="">Seleccione insumo...</option>';
+            uniqueNames.forEach(name => {
+                optionsHtml += `<option value="${name}">${name}</option>`;
+            });
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <select class="form-select prod-select" onchange="handleProductSelect(this)">
+                        ${optionsHtml}
+                    </select>
+                </td>
+                <td>
+                    <input type="number" class="form-input qty-input" value="${savedItem ? savedItem.cantidad : 1}" min="0.001" step="0.001" oninput="triggerCalc(this)">
+                </td>
+                <td>
+                    <select class="form-select prov-select" onchange="triggerCalc(this)">
+                        <option value="0" data-ip-id="">-</option>
+                    </select>
+                </td>
+                <td class="unit-price font-mono">$0.00</td>
+                <td class="subtotal font-mono font-semibold text-blue-400">$0.00</td>
+                <td>
+                    <button type="button" class="btn-danger text-xs py-1 px-2" onclick="deleteIngredientRow(this)">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </td>
+            `;
+            tr._onCalc = onCalcFn;
+            tbody.appendChild(tr);
+
+            if (savedItem) {
+                const prodSel = tr.querySelector('.prod-select');
+                prodSel.value = savedItem.nombre;
+                handleProductSelect(prodSel, savedItem.insumo_proveedor_id);
+            } else if (typeof onCalcFn === 'function') {
+                onCalcFn();
+            }
+        }
+
+        function handleProductSelect(selectEl, preselectedIpId = null) {
+            const tr = selectEl.closest('tr');
+            const provSelect = tr.querySelector('.prov-select');
+            const selectedName = selectEl.value;
+            const matches = inventoryCache.filter(i => i.nombre === selectedName);
+
+            provSelect.innerHTML = '';
+            if (matches.length > 0) {
+                matches.forEach(item => {
+                    const priceVal = Number(item.precio_unidad_minima) > 0
+                        ? Number(item.precio_unidad_minima)
+                        : Number(item.costo_total);
+                    provSelect.innerHTML += `<option value="${priceVal}" data-ip-id="${item.id}">${item.proveedor} ($${priceVal.toFixed(2)})</option>`;
+                });
+                if (preselectedIpId) {
+                    const opt = Array.from(provSelect.options).find(o => o.dataset.ipId == preselectedIpId);
+                    if (opt) opt.selected = true;
+                }
+            } else {
+                provSelect.innerHTML = '<option value="0" data-ip-id="">-</option>';
+            }
+            triggerCalc(selectEl);
+        }
+
+        function triggerCalc(el) {
+            const tr = el.closest('tr');
+            if (tr && typeof tr._onCalc === 'function') tr._onCalc();
+        }
+
+        function deleteIngredientRow(btn) {
+            const tr = btn.closest('tr');
+            const calcFn = tr._onCalc;
+            tr.remove();
+            if (typeof calcFn === 'function') calcFn();
+        }
+
+        // --- 4. CALCULADORA RÁPIDA ---
+        function addRecipeRow() {
+            createIngredientRow('recipe-table-body', calculateRecipe);
+        }
+
+        function calculateRecipe() {
+            let insumosCost = 0;
+            document.querySelectorAll('#recipe-table-body tr').forEach(tr => {
+                const qty = parseFloat(tr.querySelector('.qty-input')?.value) || 0;
+                const unitPrice = parseFloat(tr.querySelector('.prov-select')?.value) || 0;
+                const subtotal = qty * unitPrice;
+                insumosCost += subtotal;
+                tr.querySelector('.unit-price').innerText = `$${unitPrice.toFixed(2)}`;
+                tr.querySelector('.subtotal').innerText = `$${subtotal.toFixed(2)}`;
+            });
+
+            const laborCost = parseFloat(document.getElementById('recipe-labor')?.value) || 0;
+            const totalCost = insumosCost + laborCost;
+            const yieldUnits = Math.max(1, parseFloat(document.getElementById('recipe-yield')?.value) || 1);
+            const marginPct = Math.min(99, Math.max(0, parseFloat(document.getElementById('recipe-margin')?.value) || 0)) / 100;
+
+            const unitCost = totalCost / yieldUnits;
+            const unitPrice = marginPct < 1 ? (unitCost / (1 - marginPct)) : 0;
+            const totalPrice = unitPrice * yieldUnits;
+
+            document.getElementById('summary-total-cost').innerText = `$${totalCost.toFixed(2)}`;
+            document.getElementById('summary-unit-cost').innerText = `$${unitCost.toFixed(2)}`;
+            document.getElementById('summary-total-price').innerText = `$${totalPrice.toFixed(2)}`;
+            document.getElementById('summary-unit-price').innerText = `$${unitPrice.toFixed(2)}`;
+        }
+
+        // --- 5. LÍNEA MAYORISTA / MINORISTA (API MYSQL) ---
+        const mayorMenor = {
+            editingId: null,
+
+            openScreen(screenId) {
+                document.querySelectorAll('.mm-screen').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.mm-nav-button').forEach(el => el.classList.remove('active'));
+                document.getElementById('mm-screen-' + screenId)?.classList.remove('hidden');
+                document.querySelector(`.mm-nav-button[data-screen="${screenId}"]`)?.classList.add('active');
+
+                if (screenId === 'minorista' || screenId === 'mayorista') {
+                    this.loadRecetas();
+                }
+            },
+
+            adjustDefaultMargin() {
+                const line = document.getElementById('mm-recipe-line').value;
+                document.getElementById('mm-margin-pct').value = line === 'mayorista' ? 25 : 40;
+                this.calculate();
+            },
+
+            addRow(savedItem = null) {
+                createIngredientRow('mm-recipe-body', () => this.calculate(), savedItem);
+            },
+
+            calculate() {
+                let insumosCost = 0;
+                document.querySelectorAll('#mm-recipe-body tr').forEach(tr => {
+                    const qty = parseFloat(tr.querySelector('.qty-input')?.value) || 0;
+                    const unitPrice = parseFloat(tr.querySelector('.prov-select')?.value) || 0;
+                    const subtotal = qty * unitPrice;
+                    insumosCost += subtotal;
+                    tr.querySelector('.unit-price').innerText = `$${unitPrice.toFixed(2)}`;
+                    tr.querySelector('.subtotal').innerText = `$${subtotal.toFixed(2)}`;
+                });
+
+                const laborCost = parseFloat(document.getElementById('mm-labor-cost')?.value) || 0;
+                const totalCost = insumosCost + laborCost;
+                const yieldPieces = Math.max(1, parseFloat(document.getElementById('mm-batch-yield')?.value) || 1);
+                const marginPct = Math.min(95, Math.max(0, parseFloat(document.getElementById('mm-margin-pct')?.value) || 0)) / 100;
+
+                const unitCost = totalCost / yieldPieces;
+                const salePrice = marginPct < 1 ? (unitCost / (1 - marginPct)) : 0;
+
+                document.getElementById('mm-total-cost').innerText = `$${totalCost.toFixed(2)}`;
+                document.getElementById('mm-unit-cost').innerText = `$${unitCost.toFixed(2)}`;
+                document.getElementById('mm-sale-price').innerText = `$${salePrice.toFixed(2)}`;
+
+                return { totalCost, unitCost, salePrice, yieldPieces, laborCost, marginPct: marginPct * 100 };
+            },
+
+            async saveRecipe() {
+                const nombre = document.getElementById('mm-recipe-name').value.trim();
+                const linea = document.getElementById('mm-recipe-line').value;
+
+                if (!nombre) {
+                    alert('Asigna un nombre a la receta.');
+                    return;
+                }
+
+                const items = [];
+                document.querySelectorAll('#mm-recipe-body tr').forEach(tr => {
+                    const provSel = tr.querySelector('.prov-select');
+                    const selectedOpt = provSel?.options[provSel.selectedIndex];
+                    const ipId = selectedOpt?.dataset?.ipId;
+                    const cantidad = parseFloat(tr.querySelector('.qty-input')?.value) || 0;
+                    const precio_unitario = parseFloat(provSel?.value) || 0;
+
+                    if (ipId && cantidad > 0) {
+                        items.push({ insumo_proveedor_id: Number(ipId), cantidad, precio_unitario });
+                    }
+                });
+
+                if (items.length === 0) {
+                    alert('Agrega al menos un insumo válido guardado en inventario.');
+                    return;
+                }
+
+                const m = this.calculate();
+                const payload = {
+                    nombre,
+                    linea,
+                    rendimiento_piezas: m.yieldPieces,
+                    margen_pct: m.marginPct,
+                    costo_mano_obra: m.laborCost,
+                    costo_total: m.totalCost,
+                    costo_unitario: m.unitCost,
+                    precio_venta_unitario: m.salePrice,
+                    items
+                };
+
+                const url = this.editingId ? `/api/recetas/${this.editingId}` : '/api/recetas';
+                const method = this.editingId ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert('Error al guardar receta: ' + err.error);
+                    return;
+                }
+
+                this.editingId = null;
+                alert(`Receta "${nombre}" guardada en MySQL (${linea}).`);
+                this.openScreen(linea);
+            },
+
+            async loadRecetas() {
+                const res = await fetch('/api/recetas');
+                recetasCache = await res.json();
+                this.renderSavedRecipes();
+            },
+
+            renderSavedRecipes() {
+                ['minorista', 'mayorista'].forEach(line => {
+                    const tbody = document.getElementById(`mm-${line}-body`);
+                    if (!tbody) return;
+                    const filtered = recetasCache.filter(r => r.linea === line);
+                    tbody.innerHTML = '';
+
+                    if (filtered.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-zinc-500 py-4">No hay recetas guardadas en esta línea.</td></tr>`;
+                        return;
+                    }
+
+                    filtered.forEach(r => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><input type="checkbox" class="mm-check-${line}" data-id="${r.id}"></td>
+                            <td class="font-medium">${r.nombre}</td>
+                            <td>${r.rendimiento_piezas} pzas</td>
+                            <td>$${Number(r.costo_unitario).toFixed(2)}</td>
+                            <td class="text-emerald-400 font-semibold">$${Number(r.precio_venta_unitario).toFixed(2)}</td>
+                            <td>${Number(r.margen_pct).toFixed(0)}%</td>
+                            <td class="text-right space-x-2">
+                                <button type="button" class="btn-primary text-xs py-1 px-2" onclick="mayorMenor.editRecipe(${r.id})"><i class="fa-solid fa-pen"></i></button>
+                                <button type="button" class="btn-danger text-xs py-1 px-2" onclick="mayorMenor.deleteRecipe(${r.id})"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                });
+            },
+
+            editRecipe(id) {
+                const r = recetasCache.find(item => item.id == id);
+                if (!r) return;
+                this.editingId = r.id;
+                this.openScreen('receta');
+                document.getElementById('mm-recipe-name').value = r.nombre;
+                document.getElementById('mm-recipe-line').value = r.linea;
+                document.getElementById('mm-batch-yield').value = r.rendimiento_piezas;
+                document.getElementById('mm-labor-cost').value = r.costo_mano_obra;
+                document.getElementById('mm-margin-pct').value = r.margen_pct;
+
+                const tbody = document.getElementById('mm-recipe-body');
+                tbody.innerHTML = '';
+                (r.items || []).forEach(item => this.addRow(item));
+                this.calculate();
+            },
+
+            async deleteRecipe(id) {
+                if (!confirm('¿Eliminar esta receta de MySQL?')) return;
+                await fetch(`/api/recetas/${id}`, { method: 'DELETE' });
+                await this.loadRecetas();
+            },
+
+            newRecipe(line) {
+                this.editingId = null;
+                this.openScreen('receta');
+                document.getElementById('mm-recipe-name').value = '';
+                document.getElementById('mm-recipe-line').value = line;
+                document.getElementById('mm-batch-yield').value = 10;
+                document.getElementById('mm-labor-cost').value = 0;
+                document.getElementById('mm-recipe-body').innerHTML = '';
+                this.adjustDefaultMargin();
+                this.addRow();
+            },
+
+            toggleSelectAll(line, checkbox) {
+                document.querySelectorAll(`.mm-check-${line}`).forEach(cb => cb.checked = checkbox.checked);
+            },
+
+            generateBatchQuote(line) {
+                const checked = Array.from(document.querySelectorAll(`.mm-check-${line}:checked`));
+                const panel = document.getElementById(`mm-quote-panel-${line}`);
+                const details = document.getElementById(`mm-quote-details-${line}`);
+
+                if (checked.length === 0) {
+                    panel.classList.add('hidden');
+                    alert('Selecciona al menos una receta para cotizar.');
+                    return;
+                }
+
+                let totalVenta = 0, totalCosto = 0, totalPiezas = 0, rowsHtml = '';
+                checked.forEach(cb => {
+                    const r = recetasCache.find(item => item.id == cb.dataset.id);
+                    if (r) {
+                        const loteVenta = Number(r.precio_venta_unitario) * Number(r.rendimiento_piezas);
+                        totalVenta += loteVenta;
+                        totalCosto += Number(r.costo_total);
+                        totalPiezas += Number(r.rendimiento_piezas);
+                        rowsHtml += `
+                            <tr>
+                                <td>${r.nombre}</td>
+                                <td>${r.rendimiento_piezas} pzas</td>
+                                <td>$${Number(r.costo_total).toFixed(2)}</td>
+                                <td class="text-emerald-400 font-bold">$${loteVenta.toFixed(2)} ($${Number(r.precio_venta_unitario).toFixed(2)} c/u)</td>
+                            </tr>
+                        `;
+                    }
+                });
+
+                details.innerHTML = `
+                    <div class="table-responsive mt-2">
+                        <table class="custom-table">
+                            <thead><tr><th>Receta</th><th>Lote</th><th>Costo Producción</th><th>Precio Venta Lote</th></tr></thead>
+                            <tbody>${rowsHtml}</tbody>
+                        </table>
+                    </div>
+                    <div class="mm-quote-totals">
+                        <p class="text-sm text-zinc-400">Piezas Totales: <strong>${totalPiezas}</strong> | Costo Total: <strong>$${totalCosto.toFixed(2)}</strong></p>
+                        <p class="text-sm text-emerald-400">Utilidad Estimada: <strong>$${(totalVenta - totalCosto).toFixed(2)}</strong></p>
+                        <p class="mm-quote-total mt-1">Total Cotización: $${totalVenta.toFixed(2)}</p>
+                    </div>
+                `;
+                panel.classList.remove('hidden');
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadInventory();
+            await loadNomina();
+            await mayorMenor.loadRecetas();
+            addRecipeRow();
+            mayorMenor.addRow();
+        });
+    </script>
+</body>
+</html>
