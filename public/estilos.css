@@ -303,3 +303,14 @@ body {
     border-bottom: 1px solid #ddd !important;
 }
 }
+
+/* --- ANEXO: Estilos para Recetas Diarias y CRUD --- */
+.badge-daily {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--accent-green);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
